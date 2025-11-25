@@ -1,0 +1,330 @@
+#include <stdio.h> //VALIDATE : XAC THUC DU LIEU
+#include <string.h>
+#include <stdlib.h> 
+
+// Dinh nghia hang so
+#define MAX 100
+#define PRODUCT_ID_LEN 10
+#define PRODUCT_NAME_LEN 50
+#define PRODUCT_UNIT_LEN 16
+
+// Khai bao cau truc Product (Hang hoa)
+struct Product {
+    char productId[PRODUCT_ID_LEN]; // Ma hang hoa (Duy nhat. Khoa chinh)
+    char name[PRODUCT_NAME_LEN];    // Ten hang hoa
+    char unit[PRODUCT_UNIT_LEN];    // Don vi hang hoa (Cai/Hop...)
+    int qty;                        // So luong ton kho
+    int status;                     // Trang thai (1: Con su dung, 0: Da het han)
+};
+
+// Khai bao cau truc Transaction (Xuat/Nhap hang hoa)
+struct Transaction {
+    char transId[20];
+    char productId[PRODUCT_ID_LEN];
+    char type[5]; // IN = nhap / OUT = xuat
+    char date[15]; // Thoi gian giao dich.
+};
+
+// KHAI BAO BIEN TOAN CUC
+struct Product products[MAX];
+int productCount = 0;
+
+//KHAI BAO NGUYEN MAU HAM
+void display_menu();
+int isUniqueId(const char* id);
+void add_new_product();
+void display_product_list();
+struct Product* find_product_by_id(const char* id);
+void update_product_info();
+void validate_and_update(struct Product* p);
+
+// Ham tien ich de nhap chuoi an toan va loai bo ky tu xuong dong.
+void safe_input(char* buffer, int size) {
+    // Su dung fgets de nhap chuoi vao Vung nho voi Kich thuoc toi da (size)
+    fgets(buffer, size, stdin); 
+    // Loai bo ky tu xuong dong ('\n') bang cach thay the no bang ky tu ket thuc chuoi ('\0')
+    buffer[strcspn(buffer, "\n")] = 0; 
+}
+// CHUC NANG CHINHHH!!!!!!!!
+int main() {
+    int choice;
+    do {
+        display_menu();
+        printf("Nhap lua chon cua ban: ");
+        if (scanf("%d", &choice) != 1) {
+            // Xu ly dau vao khong hop le (vi du: nhap chu thay vi so)
+            while (getchar() != '\n');
+            choice = -1;
+            continue;
+        }
+        while (getchar() != '\n'); // Xoa bo dem ban phim sau khi nhap so
+
+        switch (choice) {
+            case 1:
+                add_new_product();
+                break;
+            case 2:
+                display_product_list();
+                break;
+            case 3:
+                update_product_info();
+                break;
+            case 0:
+                printf("\n--- Thoat chuong trinh. Tam biet KO bao gio gap lai hehe! ---\n");
+                break;
+            default:
+                printf("\n[ERROR] Lua chon khong hop le. Vui long nhap lai.\n");
+        }
+        printf("\n");
+    } while (choice != 0);
+
+    return 0;
+}
+
+void display_menu() {
+    printf("\n--- HE THONG QUAN LY HANG HOA ---\n");
+    printf("1. Them hang hoa moi\n");
+    printf("2. Hien thi danh sach hang hoa\n");
+    printf("3. Cap nhat thong tin hang hoa (Sua Name, Unit, Qty)\n");
+    printf("0. Thoat\n");
+    printf("----------------------------------\n");
+}
+
+int isUniqueId(const char* id) {
+    for (int i = 0; i < productCount; i++) {
+        if (strcmp(products[i].productId, id) == 0) {
+            return 0; // Da tim thay ID trung lap
+        }
+    }
+    return 1; // ID duy nhat
+	}
+ //Them hang hoa moi vao danh sach.
+ //Bao gom kiem tra ID duy nhat va validate cac truong bat buoc.
+void add_new_product() {
+    if (productCount >= MAX) {
+        printf("[ERROR] Danh sach san pham da day!\n");
+        return;
+    }
+
+    struct Product newProduct;
+    char tempId[PRODUCT_ID_LEN];
+
+    printf("\n--- THEM HANG HOA MOI ---\n");
+
+//1Nhap va Validate productId (Duy nhat va Khong rong)
+    do {
+        printf("Nhap ID san pham (toi da %d ky tu): ", PRODUCT_ID_LEN - 1);
+        safe_input(tempId, PRODUCT_ID_LEN); 
+
+        if (strlen(tempId) == 0) {
+            printf("[ERROR] ID khong duocc de trong! Vui longa nhap lai.\n");
+        } else if (!isUniqueId(tempId)) {
+            printf("[ERROR] ID '%s' da ton tai. Vui long nhap ID khac!\n", tempId);
+        } 
+    } while (strlen(tempId) == 0 || !isUniqueId(tempId));
+    strcpy(newProduct.productId, tempId);
+
+//2.Nhap va Validate Name (Khong rong)
+    do {
+        printf("Nhap Ten hang hoa (khong duoc de trong): ");
+        safe_input(newProduct.name, PRODUCT_NAME_LEN);
+        
+        if (strlen(newProduct.name) == 0) {
+            printf("[LOI ROI EM] Ten hang hoa khog duoc de trong! Vui long nhap lai.\n");
+        }
+    } while (strlen(newProduct.name) == 0);
+
+//3. Nhap va Validate Unit (Khong rong)
+    do {
+        printf("Nhap Don vi hang hoa : ");
+        safe_input(newProduct.unit, PRODUCT_UNIT_LEN);
+
+        if (strlen(newProduct.unit) == 0) {
+            printf("[LOI ROI EM] Don vi hang hoa khong duoc de trong! Vui long nhap lai.\n");
+        }
+    } while (strlen(newProduct.unit) == 0);
+
+    // 4.Nhap va Validate Qty (>=0)
+    do {
+        printf("Nhap So luong ton kho: ");
+        if (scanf("%d", &newProduct.qty) != 1) {
+             printf("[ERRORRRR] So luong phai la so nguyen va >= 0!\n");
+             while (getchar() != '\n'); 
+             newProduct.qty = -1; 
+             continue;
+        }
+        while (getchar() != '\n'); 
+
+        if (newProduct.qty < 0) {
+            printf("[ERRORRR] So luong ton kho phai lon hon hoac bang 0! Vui long nhap lai.\n");
+        }
+    } while (newProduct.qty < 0);
+
+// Mac dinh Status la 1 (Con su dung)
+    newProduct.status = 1;
+
+    // Luu san pham vao mang
+    products[productCount] = newProduct;
+    productCount++;
+
+    printf("\nThem hang hoa '%s' thanh cong! So luong hien tai: %d\n", newProduct.name, productCount);
+}
+//Hien thi danh sach tat ca hang hoa hien co
+void display_product_list() {
+    if (productCount == 0) {
+        printf("\n Danh sach hang hoa trong\n");
+        return;
+    }
+
+    printf("\n--- DANH SACH HANG HOA (Tong: %d) ---\n", productCount);
+    printf("%-5s| %-10s| %-40s| %-10s| %-5s| %-6s\n", 
+           "STT", "ID", "TEN HANG HOA", "DON VI", "QTY", "STATUS");
+    printf("----------------------------------------------------------------------------------\n");
+    
+    for (int i = 0; i < productCount; i++) {
+        printf("%-5d| %-10s| %-40s| %-10s| %-5d| %-6s\n", 
+               i + 1,
+               products[i].productId, 
+               products[i].name, 
+               products[i].unit, 
+               products[i].qty, 
+               products[i].status == 1 ? "Active" : "InAct");
+    }
+    printf("----------------------------------------------------------------------------------\n");
+}
+
+//Tim kiem hang hoa theo ID
+// id ID can tim
+//return Con tro toi Product neu tim thay, NULL neu khong tim thay
+
+struct Product* find_product_by_id(const char* id) {
+    for (int i = 0; i < productCount; i++) {
+        if (strcmp(products[i].productId, id) == 0) {
+            return &products[i]; // Tra ve dia chi cua Product tim duoc
+        }
+    }
+    return NULL; // Khong tim thay
+}
+
+//Chuc nang cap nhat thong tin hang hoa
+//Chi cho phep sua Name, Unit, Qty. Khong duoc sua ID
+
+void update_product_info() {
+    char searchId[PRODUCT_ID_LEN];
+    struct Product* productToUpdate = NULL;
+
+    printf("\n--- CAP NHAT THONG TIN HANG HOA ---\n");
+    printf("Nhap ID san pham can cap nhat: ");
+    safe_input(searchId, PRODUCT_ID_LEN);
+
+    // Kiem tra ID khong duoc rong khi tim kiem
+    if (strlen(searchId) == 0) {
+        printf("[LOI ROI] ID khong duoc de trong. Khong the tim kiem.\n");
+        return;
+    }
+
+    productToUpdate = find_product_by_id(searchId);
+
+    if (productToUpdate == NULL) {
+        printf("[ERRORRRRR^^] Khong tim thay hang hoa voi ID '%s'.\n", searchId);
+        return;
+    }
+
+    printf("\n--- THONG TIN HANG HOA HIEN TAI ---\n"); // cong thuc tuong duong voi viec su dung ->: VDU ptr->member thi co 
+//the viet la  (*ptr).member
+    printf("ID: %s\n", productToUpdate->productId);
+    printf("Ten hien tai: %s\n", productToUpdate->name);
+    printf("Don vi hien tai: %s\n", productToUpdate->unit);
+    printf("So luong ton kho hien tai: %d\n", productToUpdate->qty);
+    printf("-----------------------------------\n");
+
+    // Thuc hien viec nhap va validate du lieu khi cap nhat.
+    validate_and_update(productToUpdate);
+}
+
+//Thuc hien viec nhap va validate du lieu khi cap nhat
+// p Con tro toi Product can cap nhat
+
+void validate_and_update(struct Product* p) {
+    char tempStr[PRODUCT_NAME_LEN];
+    int tempQty;
+    int isUpdated = 0;
+
+    printf("\nBo qua cap nhat bang cach nhap '-' (dau gach ngang)\n");
+
+    // 1. Cap nhat Ten hang hoa (Khong rong)
+    do {
+        printf("Nhap Ten hang hoa moi (hoac '-' de bo qua): ");
+        safe_input(tempStr, PRODUCT_NAME_LEN);
+
+        	if (strcmp(tempStr, "-") == 0) {
+            printf("[INFO] Bo qua cap nhat Ten hang hoa.\n");
+            break;
+        }
+
+        // Kiem tra neu la chuoi rong (chi bam Enter)
+        if (strlen(tempStr) == 0) {
+            printf("[ERROR] Ten hang hoa khong duoc de trong! Vui long nhap lai.\n");
+        } else {
+            strcpy(p->name, tempStr);
+            isUpdated = 1;
+            break;
+        }
+    } while (1);
+
+    //2. Cap nhat Don vi hang hoa (Khong rong)
+    do {
+        printf("Nhap Don vi hang hoa moi (hoac '-' de bo qua): ");
+        safe_input(tempStr, PRODUCT_UNIT_LEN);
+
+        if (strcmp(tempStr, "-") == 0) {
+            printf(" LOA:Bo qua cap nhat Don vi hang hoa.\n");
+            break;
+        }
+
+        // Kiem tra neu la chuoi rong (chi bam Enter)
+        if (strlen(tempStr) == 0) {
+            printf("[loiloi] Don vi hang hoa khong duoc de trong! Vui long nhap lai.\n");
+        } else {
+            strcpy(p->unit, tempStr);
+            isUpdated = 1;
+            break;
+        }
+    } while (1);
+
+    //3. Cap nhat So luong ton kho (>=0)
+    do {
+        printf("Nhap So luong ton kho moi (hoac '-' de bo qua): ");
+        
+        char qty_input[20];
+        if (scanf("%s", qty_input) != 1) {
+             while (getchar() != '\n'); 
+             continue;
+        }
+        while (getchar() != '\n');
+
+        if (strcmp(qty_input, "CO NY DI") == 0) {
+            printf("Bo qua cap nhat So luong ton kho.\n");
+            break;
+        }
+        
+        // Thu chuyen doi sang so nguyen
+        if (sscanf(qty_input, "%d", &tempQty) == 1) {
+            if (tempQty < 0) {
+                printf("[LOI R?I] So luong ton kho phai lon hon hoac bang 0! Vui long nhap lai.\n");
+            } else {
+                p->qty = tempQty;
+                isUpdated = 1;
+                break;
+            }
+        } else {
+            printf("[SIUUUUU] So luong phai la so nguyen va >= 0! Vui long nhap lai.\n");
+        }
+    } while (1);
+    
+    if (isUpdated) {
+        printf("\n Cap nhat thong tin hang hoa '%s' (ID: %s) thanh cong!\n", p->name, p->productId);
+    } else {
+        printf("\n Khong co thong tin nao duoc cap nhat.\n");
+    }
+}
